@@ -45,6 +45,12 @@ class DecideCb(CallbackData, prefix="dec"):
     ok: bool
 
 
+class DecisionCommentCb(CallbackData, prefix="dcm"):
+    booking: int
+    ok: bool
+    cancel: bool = False
+
+
 class IssueCb(CallbackData, prefix="iss"):
     booking: int
     act: str  # open | date | time | place | custom | send | t | pl | typetime | typeplace | back
@@ -207,6 +213,11 @@ def decide_kb(booking_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text="✅ Подтверждаю", callback_data=DecideCb(booking=booking_id, ok=True).pack()),
         InlineKeyboardButton(text="❌ Отклоняю", callback_data=DecideCb(booking=booking_id, ok=False).pack()),
+    ], [
+        InlineKeyboardButton(text="✅ Подтвердить с комментарием",
+                             callback_data=DecisionCommentCb(booking=booking_id, ok=True).pack()),
+        InlineKeyboardButton(text="❌ Отклонить с комментарием",
+                             callback_data=DecisionCommentCb(booking=booking_id, ok=False).pack()),
     ]])
 
 

@@ -94,7 +94,8 @@ async def test_full_flow(h):
     tmsg = h.sent_to(TEACHER, calls)[-1]
     assert "Сидоров Пётр" in tmsg.text and "2 курс" in tmsg.text
     assert "25.10.2026" in tmsg.text and "27.10.2026" in tmsg.text and "Подтверждаете?" in tmsg.text
-    assert [t for t, _ in markup_of(tmsg)] == ["✅ Подтверждаю", "❌ Отклоняю"]
+    assert [t for t, _ in markup_of(tmsg)] == ["✅ Подтверждаю", "❌ Отклоняю",
+        "✅ Подтвердить с комментарием", "❌ Отклонить с комментарием"]
 
     # Чужой преподаватель не может согласовать
     other = await bind(h, 101, Role.TEACHER, "Григорьев")

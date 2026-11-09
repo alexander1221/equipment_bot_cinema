@@ -119,7 +119,8 @@ async def test_pending_edit_resends_to_teacher(h):
         await notify.changed(h.bot, s, h.settings, b, desc)
     new = h.sent_to(TEACHER, h.session.calls[n:])
     assert new and "03.11.2026" in new[-1].text and "× 2" in new[-1].text
-    assert [t for t, _ in markup_of(new[-1])] == ["✅ Подтверждаю", "❌ Отклоняю"]
+    assert [t for t, _ in markup_of(new[-1])] == ["✅ Подтверждаю", "❌ Отклоняю",
+        "✅ Подтвердить с комментарием", "❌ Отклонить с комментарием"]
 
 
 async def test_student_early_return_request(h):

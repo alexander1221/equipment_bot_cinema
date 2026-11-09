@@ -9,7 +9,7 @@ from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from .. import notify, services, texts
@@ -30,30 +30,91 @@ class Spec(StatesGroup):
 # ---------------------------------------------------------------- преподаватель
 
 
+class Decision(StatesGroup):
+    comment = State()
+
+
+async def _decision_booking(s, bid: int, uid: int, settings: Settings):
+    b = await services.get_booking(s, bid)
+    if b is None:
+        raise services.BookingError("Заявка не найдена.")
+    own = b.teacher is not None and b.teacher.tg_id == uid
+    if not own and not await services.is_specialist(s, uid, settings):
+        raise services.BookingError("Эту заявку согласует другой преподаватель.")
+    if b.status != Status.PENDING:
+        raise services.BookingError("По этой заявке уже принято решение или она закрыта.")
+    me = await services.staff_by_tg(s, uid)
+    return b, me.full_name if me else str(uid)
+
+
 @router.callback_query(kb.DecideCb.filter())
-async def decide(cb: CallbackQuery, callback_data: kb.DecideCb, sm: async_sessionmaker,
-                 settings: Settings, clock, bot: Bot) -> None:
+async def decide(cb: CallbackQuery, callback_data: kb.DecideCb, state: FSMContext,
+                 sm: async_sessionmaker, settings: Settings, clock, bot: Bot) -> None:
     async with sm() as s:
-        b = await services.get_booking(s, callback_data.booking)
-        if b is None:
-            await cb.answer("Заявка не найдена.", show_alert=True)
-            return
-        me = await services.staff_by_tg(s, cb.from_user.id)
-        own = b.teacher is not None and b.teacher.tg_id == cb.from_user.id
-        if not own and not await services.is_specialist(s, cb.from_user.id, settings):
-            await cb.answer("Эту заявку согласует другой преподаватель.", show_alert=True)
-            return
-        who = me.full_name if me else str(cb.from_user.id)
         try:
+            b, who = await _decision_booking(s, callback_data.booking, cb.from_user.id, settings)
             b = await services.decide(s, settings, b.id, callback_data.ok, who, clock())
         except services.BookingError as e:
             await cb.answer(str(e), show_alert=True)
-            await cb.message.edit_reply_markup(reply_markup=None)
             return
+        await state.clear()
         verdict = "✅ Вы подтвердили заявку." if callback_data.ok else "❌ Вы отклонили заявку."
         await cb.message.edit_text(texts.teacher_request(b).rsplit("\n\n", 1)[0] + f"\n\n{verdict}")
         await cb.answer()
         await notify.decided(bot, s, settings, b, except_message=(cb.message.chat.id, cb.message.message_id))
+
+
+@router.callback_query(kb.DecisionCommentCb.filter())
+async def decision_comment(cb: CallbackQuery, callback_data: kb.DecisionCommentCb,
+                           state: FSMContext, sm: async_sessionmaker, settings: Settings) -> None:
+    if callback_data.cancel:
+        data = await state.get_data()
+        if await state.get_state() == Decision.comment.state and data.get("booking") == callback_data.booking:
+            await state.clear()
+        await cb.message.edit_reply_markup(reply_markup=None)
+        await cb.answer("Ввод комментария отменён. Решение не принято.")
+        return
+    async with sm() as s:
+        try:
+            await _decision_booking(s, callback_data.booking, cb.from_user.id, settings)
+        except services.BookingError as e:
+            await cb.answer(str(e), show_alert=True)
+            return
+    await state.clear()
+    await state.set_state(Decision.comment)
+    await state.update_data(booking=callback_data.booking, approve=callback_data.ok)
+    action = "подтверждению" if callback_data.ok else "отказу"
+    markup = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="Без комментария",
+                             callback_data=kb.DecideCb(booking=callback_data.booking, ok=callback_data.ok).pack()),
+        InlineKeyboardButton(text="Отмена", callback_data=kb.DecisionCommentCb(
+            booking=callback_data.booking, ok=callback_data.ok, cancel=True).pack()),
+    ]])
+    await cb.message.answer(f"Комментарий к {action} заявки №{callback_data.booking}: отправьте текст "
+                            "(до 500 символов). Студент получит его вместе с решением.", reply_markup=markup)
+    await cb.answer()
+
+
+@router.message(Decision.comment)
+async def submit_decision_comment(message: Message, state: FSMContext, sm: async_sessionmaker,
+                                  settings: Settings, clock, bot: Bot) -> None:
+    comment = (message.text or "").strip()
+    if not comment or len(comment) > 500 or comment.startswith("/"):
+        await message.answer("Отправьте комментарий текстом от 1 до 500 символов или используйте кнопки выше.")
+        return
+    data = await state.get_data()
+    async with sm() as s:
+        try:
+            b, who = await _decision_booking(s, data["booking"], message.from_user.id, settings)
+            b = await services.decide(s, settings, b.id, data["approve"], who, clock(), comment=comment)
+        except services.BookingError as e:
+            await state.clear()
+            await message.answer(str(e))
+            return
+        await state.clear()
+        verdict = "подтверждена" if data["approve"] else "отклонена"
+        await message.answer(f"Заявка №{b.id} {verdict}.\nКомментарий: {escape(comment)}")
+        await notify.decided(bot, s, settings, b)
 
 
 # ---------------------------------------------------------------- специалист

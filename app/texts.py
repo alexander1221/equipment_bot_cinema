@@ -100,6 +100,7 @@ def specialist_request(b: Booking) -> str:
         f"Оборудование:\n{items_lines(b)}\n\n"
         f"Даты: <b>{period(b.start_date, b.end_date)}</b>\n"
         f"Проект: «{escape(b.title)}»"
+        + (f"\nКомментарий преподавателя: {escape(b.comment)}" if b.comment else "")
     )
 
 

@@ -80,16 +80,16 @@ async def close_notices(bot: Bot, s: AsyncSession, booking_id: int, text: str,
 async def decided(bot: Bot, s: AsyncSession, settings: Settings, b: Booking,
                   except_message: tuple[int, int] | None = None) -> None:
     """Преподаватель (или специалист в панели) принял решение."""
+    reason = f"\nКомментарий: {escape(b.comment)}" if b.comment else ""
     if b.status == Status.APPROVED:
         await close_notices(bot, s, b.id, texts.teacher_request(b).rsplit("\n\n", 1)[0]
-                            + f"\n\n✅ Подтверждено ({escape(b.decided_by)})", "teacher", except_message)
+                            + f"\n\n✅ Подтверждено ({escape(b.decided_by)})" + reason, "teacher", except_message)
         await to_student(bot, b, f"✅ Заявка №{b.id} подтверждена преподавателем. "
-                                 "Специалист по выдаче скоро назначит время — бот пришлёт сообщение.")
+                                 "Специалист по выдаче скоро назначит время — бот пришлёт сообщение." + reason)
         await to_specialists(bot, s, settings, texts.specialist_request(b), kb.open_issue_kb(b.id), b.id)
     else:
         await close_notices(bot, s, b.id, texts.teacher_request(b).rsplit("\n\n", 1)[0]
-                            + f"\n\n❌ Отклонено ({escape(b.decided_by)})", "teacher", except_message)
-        reason = f"\nКомментарий: {escape(b.comment)}" if b.comment else ""
+                            + f"\n\n❌ Отклонено ({escape(b.decided_by)})" + reason, "teacher", except_message)
         await to_student(bot, b, f"❌ Заявка №{b.id} отклонена преподавателем.{reason}\n"
                                  "Можно подать новую заявку через «📝 Новая заявка».")
 
