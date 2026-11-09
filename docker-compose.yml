@@ -1,0 +1,11 @@
+services:
+  equipment-bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////srv/data/equipment.db
+    volumes:
+      - ./data:/srv/data
+    ports:
+      - "8080:8080"

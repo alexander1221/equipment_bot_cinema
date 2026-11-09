@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block content %}
+<h1>Сводка на {{ texts.d_long(today) }}</h1>
+<div class="tabs">
+  {% for key, (title, _s) in STATUS_FILTERS.items() %}
+    <a href="/requests?f={{ key }}">{{ title }}: <b>{{ counts[key] }}</b></a>
+  {% endfor %}
+</div>
+{% if pending_students %}
+<div class="card" style="border-color:var(--warn)">
+  <b>{{ pending_students }}</b> студент(ов) ждут подтверждения профиля и пока не могут подавать заявки.
+  <a href="/students">Проверить →</a>
+</div>
+{% endif %}
+{% if overdue %}
+<div class="card" style="border-color:var(--err)">
+  <h2 style="margin-top:0;color:var(--err)">Просрочен возврат ({{ overdue|length }})</h2>
+  {{ m.table(overdue) }}
+</div>
+{% endif %}
+<div class="card">
+  <h2 style="margin-top:0">Выдать сегодня (и раньше, если не выдано)</h2>
+  {{ m.table(issues) }}
+</div>
+<div class="card">
+  <h2 style="margin-top:0">Вернуть сегодня (и просроченные)</h2>
+  {{ m.table(returns) }}
+</div>
+{% endblock %}

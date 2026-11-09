@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="max-width:380px;margin:60px auto">
+  <h1>Вход в панель</h1>
+  {% if not configured %}
+    <p class="flash err">Пароль панели не задан. Укажите WEB_SPECIALIST_PASSWORD и WEB_ADMIN_PASSWORD в файле .env и перезапустите сервис.</p>
+  {% endif %}
+  <form method="post" action="/login" class="row">
+    <label style="flex:1">Пароль <input type="password" name="password" autofocus required></label>
+    <button type="submit">Войти</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Студенты</h1>
+<p class="muted">Курс и ФИО студент указывает в боте сам. Пока специалист не сверит их со списком группы и не подтвердит,
+  студент не может подавать заявки. Если студент меняет ФИО, группу или курс, профиль снова попадает сюда.</p>
+<div class="tabs">
+  <a href="/students?f=pending" class="{{ 'on' if f == 'pending' }}">Ждут подтверждения</a>
+  <a href="/students?f=verified" class="{{ 'on' if f == 'verified' }}">Подтверждённые</a>
+  <a href="/students?f=blocked" class="{{ 'on' if f == 'blocked' }}">Заблокированные</a>
+  <a href="/students?f=all" class="{{ 'on' if f == 'all' }}">Все</a>
+</div>
+<div class="card" style="overflow-x:auto">
+<table>
+  <tr><th>ФИО</th><th>Группа</th><th>Курс</th><th>Telegram</th><th>Статус</th><th>Действия</th></tr>
+  {% for st, course in rows %}
+  <tr>
+    <td>{{ st.full_name }}<div class="muted">с {{ st.created_at.strftime('%d.%m.%Y') }}</div></td>
+    <td>{{ st.group_name or '—' }}</td>
+    <td>{{ course }}</td>
+    <td>{% if st.username %}<a href="https://t.me/{{ st.username }}">@{{ st.username }}</a>{% else %}<span class="muted">нет username</span>{% endif %}
+        <div class="muted">id {{ st.tg_id }}</div></td>
+    <td>{{ STUDENT_STATUS_TITLES[st.status] }}{% if st.verified_by %}<div class="muted">{{ st.verified_by }}</div>{% endif %}</td>
+    <td>
+      {% if st.status != 'blocked' %}
+      <form method="post" action="/students/{{ st.id }}" class="inline">
+        <input type="hidden" name="back" value="{{ f }}">
+        <select name="course">{% for c in (1, 2, 3, 4) %}<option value="{{ c }}" {{ 'selected' if c == course }}>{{ c }} курс</option>{% endfor %}</select>
+        <button name="act" value="verify">{{ 'Изменить курс' if st.status == 'verified' else 'Подтвердить' }}</button>
+      </form>
+      <form method="post" action="/students/{{ st.id }}" class="inline" onsubmit="return confirm('Заблокировать {{ st.full_name }}?')">
+        <input type="hidden" name="back" value="{{ f }}">
+        <button name="act" value="block" class="danger">Заблокировать</button>
+      </form>
+      {% else %}
+      <form method="post" action="/students/{{ st.id }}" class="inline">
+        <input type="hidden" name="back" value="{{ f }}">
+        <button name="act" value="unblock" class="sec">Разблокировать</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">Никого нет</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

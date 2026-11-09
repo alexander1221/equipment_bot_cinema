@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# Секреты и данные — не коммитить!
+.env
+.env.*
+!.env.example
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Артефакты установки
+requirements-frozen.txt
+wheels/
+*.tar.xz
+
+# Секреты и локальные настройки
+.env
+.env.*
+!.env.example
+
+# Виртуальное окружение
+.venv/
+venv/
+env/
+
+# Логи
+*.log
+
+# Настройки редакторов
+.idea/
+.vscode/
+
+# Системные файлы
+.DS_Store
+Thumbs.db

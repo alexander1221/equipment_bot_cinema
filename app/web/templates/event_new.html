@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Внутренняя бронь</h1>
+<p class="muted">Оборудование блокируется на выбранные даты, и студенты не смогут его забронировать
+  (мастер-класс, съёмка мероприятия, ремонт и т.п.). Здесь доступна вся техника, включая скрытую от студентов.</p>
+<form method="post" action="/events/new">
+  <div class="card row">
+    <label style="flex:1;min-width:240px">Название мероприятия
+      <input type="text" name="title" value="{{ form.get('title', '') }}" required></label>
+    <label>С <input type="date" name="start" value="{{ form.get('start', '') }}" required></label>
+    <label>По <input type="date" name="end" value="{{ form.get('end', '') }}" required></label>
+  </div>
+  <div class="card">
+    <table>
+      <tr><th>Категория</th><th>Наименование</th><th>Всего</th><th>Количество</th></tr>
+      {% for e in eqs %}
+      <tr>
+        <td class="muted">{{ e.category }}</td>
+        <td>{{ '🔒 ' if e.hidden }}{{ e.name }}</td>
+        <td>{{ e.total_quantity }}</td>
+        <td><input type="number" name="q_{{ e.id }}" min="0" max="{{ e.total_quantity }}"
+                   value="{{ qty.get(e.id, '') }}" style="width:80px"></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  <button type="submit">Создать бронь</button>
+</form>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block content %}
+<h1>Заявки</h1>
+<div class="tabs">
+  {% for key, (title, _s) in STATUS_FILTERS.items() %}
+    <a href="/requests?f={{ key }}" class="{{ 'on' if f == key }}">{{ title }}</a>
+  {% endfor %}
+  <a href="/requests?f=all" class="{{ 'on' if f == 'all' }}">Все</a>
+</div>
+<div class="card">{{ m.table(bookings) }}</div>
+{% endblock %}

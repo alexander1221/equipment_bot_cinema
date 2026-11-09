@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block content %}
+<h1>{% if b.kind == 'internal' %}Внутренняя бронь{% else %}Заявка{% endif %} №{{ b.id }} {{ m.badge(b) }}</h1>
+<div class="grid">
+  <div class="card">
+    <table>
+      {% if b.kind == 'student' and b.student %}
+      <tr><th>Студент</th><td>{{ b.student.full_name }}{% if b.student.username %} (@{{ b.student.username }}){% endif %}, {{ b.course_at_request }} курс</td></tr>
+      <tr><th>Преподаватель</th><td>{{ b.teacher.full_name if b.teacher else '—' }}</td></tr>
+      <tr><th>Проект</th><td>{{ b.title }}</td></tr>
+      {% else %}
+      <tr><th>Мероприятие</th><td>{{ b.title }}</td></tr>
+      {% endif %}
+      <tr><th>Даты</th><td>{{ texts.period(b.start_date, b.end_date) }}</td></tr>
+      <tr><th>Оборудование</th><td>{{ m.items(b) }}</td></tr>
+      <tr><th>Создана</th><td>{{ b.created_at.strftime('%d.%m.%Y %H:%M') }}</td></tr>
+      {% if b.decided_at %}<tr><th>Решение</th><td>{{ b.decided_at.strftime('%d.%m.%Y %H:%M') }} — {{ b.decided_by }}</td></tr>{% endif %}
+      {% if b.issued_at %}<tr><th>Выдано</th><td>{{ b.issued_at.strftime('%d.%m.%Y %H:%M') }}</td></tr>{% endif %}
+      {% if b.returned_at %}<tr><th>Возвращено</th><td>{{ b.returned_at.strftime('%d.%m.%Y %H:%M') }}</td></tr>{% endif %}
+      {% if b.comment %}<tr><th>Комментарий</th><td style="white-space:pre-wrap">{{ b.comment }}</td></tr>{% endif %}
+    </table>
+  </div>
+
+  <div class="card">
+    {% if b.status == 'pending' %}
+      <h2 style="margin-top:0">Ожидает решения преподавателя</h2>
+      <p class="muted">Если преподаватель согласовал заявку устно или не подключён к боту, решение можно отметить здесь.</p>
+      <form method="post" action="/requests/{{ b.id }}/decide">
+        <label class="muted">Комментарий (необязательно)<textarea name="comment"></textarea></label>
+        <button name="decision" value="approve">Согласовать</button>
+        <button name="decision" value="reject" class="danger">Отклонить</button>
+      </form>
+    {% endif %}
+
+    {% if b.status in ('approved', 'scheduled') %}
+      <h2 style="margin-top:0">Назначение выдачи</h2>
+      <form method="post" action="/requests/{{ b.id }}/issue">
+        <div class="row">
+          <label>Дата <input type="date" name="issue_date" value="{{ b.issue_date.isoformat() if b.issue_date else '' }}" required></label>
+          <label>Время <input type="time" name="issue_time" value="{{ b.issue_time }}" required></label>
+          <label>Место
+            <input type="text" name="issue_place" value="{{ b.issue_place }}" list="places" required>
+            <datalist id="places">{% for p in places %}<option value="{{ p }}">{% endfor %}</datalist>
+          </label>
+        </div>
+        <p><label class="muted">Свой текст вместо шаблона (необязательно)
+          <textarea name="custom_text">{{ b.issue_custom_text }}</textarea></label></p>
+        <button name="action" value="save" class="sec">Сохранить черновик</button>
+        <button name="action" value="send">{% if b.status == 'scheduled' %}Отправить изменения студенту{% else %}Отправить студенту{% endif %}</button>
+      </form>
+      {% if preview %}
+        <h2>Сообщение студенту</h2>
+        <pre class="msg">{{ preview }}</pre>
+      {% endif %}
+    {% endif %}
+
+    <h2>Действия</h2>
+    {% if b.status in ('approved', 'scheduled') %}
+      <form method="post" action="/requests/{{ b.id }}/state" class="inline"><button name="act" value="issued">📦 Отметить: выдано</button></form>
+    {% endif %}
+    {% if b.status == 'issued' %}
+      <form method="post" action="/requests/{{ b.id }}/state" class="inline"><button name="act" value="returned">↩️ Отметить: возвращено</button></form>
+      <span class="muted">— в любой день, в том числе раньше срока; техника сразу возвращается в оборот.</span>
+    {% endif %}
+    {% if b.status in ('pending', 'approved', 'scheduled', 'internal') %}
+      <form method="post" action="/requests/{{ b.id }}/state" class="inline" onsubmit="return confirm('Отменить бронь №{{ b.id }}?')">
+        <input type="text" name="reason" placeholder="Причина отмены">
+        <button name="act" value="cancel" class="danger">Отменить</button>
+      </form>
+    {% endif %}
+    {% if b.status in ('returned', 'rejected', 'cancelled', 'expired') %}<p class="muted">Заявка закрыта.</p>{% endif %}
+  </div>
+</div>
+{% if b.status in ('pending', 'approved', 'scheduled', 'issued', 'internal') %}
+<details class="card" {{ 'open' if b.kind == 'internal' }}>
+  <summary><b>Изменить даты или состав</b>
+    <span class="muted">— продление, сокращение, частичный возврат (уменьшите количество)</span></summary>
+  <p class="muted">Занятость проверяется автоматически. Ограничения по курсу и сроку брони здесь не действуют —
+    решение за вами. {% if b.kind == 'student' %}Студент получит уведомление{% if b.status == 'pending' %}, преподаватель — обновлённый запрос{% endif %}.{% endif %}
+    {% if b.status == 'issued' %}Оборудование выдано: дату начала изменить нельзя. Полный досрочный возврат — кнопкой «Отметить: возвращено».{% endif %}</p>
+  <form method="post" action="/requests/{{ b.id }}/edit">
+    <div class="row">
+      <label>С <input type="date" name="start" value="{{ b.start_date.isoformat() }}" {{ 'readonly' if b.status == 'issued' }} required></label>
+      <label>По <input type="date" name="end" value="{{ b.end_date.isoformat() }}" required></label>
+    </div>
+    <div style="overflow-x:auto;margin:10px 0">
+    <table>
+      <tr><th>Наименование</th><th>Всего</th><th>В брони</th></tr>
+      {% for e in eqs %}
+      <tr {% if not qty.get(e.id) %}class="muted"{% endif %}>
+        <td>{{ '🔒 ' if e.hidden }}{{ e.name }}</td><td>{{ e.total_quantity }}</td>
+        <td><input type="number" name="q_{{ e.id }}" min="0" max="{{ e.total_quantity }}" value="{{ qty.get(e.id, 0) }}" style="width:70px"></td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+    <button type="submit">Сохранить изменения</button>
+  </form>
+</details>
+{% endif %}
+<p><a href="/requests">← ко всем заявкам</a></p>
+{% endblock %}

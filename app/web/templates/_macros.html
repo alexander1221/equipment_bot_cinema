@@ -1,0 +1,31 @@
+{% macro badge(b) -%}
+<span class="badge st-{{ b.status }}">{{ STATUS_TITLES[Status(b.status)] }}</span>
+{%- endmacro %}
+
+{% macro who(b) -%}
+{% if b.kind == 'internal' %}🏫 {{ b.title }}{% elif b.student %}{{ b.student.full_name }}, {{ b.course_at_request }} к.{% endif %}
+{%- endmacro %}
+
+{% macro items(b) -%}
+{% for it in b.items %}{{ it.equipment.name }}{% if it.quantity > 1 %} × {{ it.quantity }}{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}
+{%- endmacro %}
+
+{% macro table(bookings) -%}
+<div style="overflow-x:auto">
+<table>
+  <tr><th>№</th><th>Кто</th><th>Даты</th><th>Оборудование</th><th>Статус</th><th>Выдача</th></tr>
+  {% for b in bookings %}
+  <tr>
+    <td><a href="/requests/{{ b.id }}">{{ b.id }}</a></td>
+    <td>{{ who(b) }}{% if b.teacher %}<div class="muted">преп. {{ b.teacher.full_name }}</div>{% endif %}</td>
+    <td style="white-space:nowrap">{{ texts.period(b.start_date, b.end_date) }}</td>
+    <td>{{ items(b) }}</td>
+    <td>{{ badge(b) }}</td>
+    <td class="muted">{% if b.status in ('scheduled',) and b.issue_date %}{{ texts.d_short(b.issue_date) }} {{ b.issue_time }}{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">Нет заявок</td></tr>
+  {% endfor %}
+</table>
+</div>
+{%- endmacro %}

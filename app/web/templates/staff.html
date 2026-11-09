@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Сотрудники</h1>
+<p class="muted">Чтобы сотрудник получал уведомления, отправьте ему его ссылку-приглашение и попросите открыть её в Telegram
+  (или отправить боту указанную команду). Ссылка привязывает Telegram-аккаунт к записи.</p>
+<div class="card" style="overflow-x:auto">
+<table>
+  <tr><th>ФИО</th><th>Роль</th><th>Telegram</th><th>Приглашение</th><th></th></tr>
+  {% for st in staff %}
+  <tr>
+    <td>
+      <form method="post" action="/staff/{{ st.id }}/edit" class="inline">
+        <input type="text" name="full_name" value="{{ st.full_name }}" style="width:220px">
+        <label class="muted"><input type="checkbox" name="active" {{ 'checked' if st.active }}> активен</label>
+        <button class="sec">Сохранить</button>
+      </form>
+    </td>
+    <td>{{ {'teacher': 'преподаватель', 'specialist': 'специалист', 'admin': 'администратор'}[st.role] }}</td>
+    <td>{% if st.tg_id %}✅ подключён{% else %}<span class="muted">не подключён</span>{% endif %}</td>
+    <td style="font-size:13px">
+      {% if bot_username %}<a href="https://t.me/{{ bot_username }}?start=inv_{{ st.invite_token }}">t.me/{{ bot_username }}?start=inv_{{ st.invite_token }}</a>
+      {% else %}<code>/start inv_{{ st.invite_token }}</code>{% endif %}
+    </td>
+    <td>
+      <form method="post" action="/staff/{{ st.id }}/edit" class="inline" onsubmit="return confirm('Создать новую ссылку? Старая перестанет работать, Telegram придётся привязать заново.')">
+        <button name="act" value="relink" class="sec">Новая ссылка</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">Добавить сотрудника</h2>
+  <form method="post" action="/staff/new" class="row">
+    <label style="flex:1;min-width:220px">ФИО <input type="text" name="full_name" required></label>
+    <label>Роль <select name="role">
+      <option value="teacher">преподаватель</option>
+      <option value="specialist">специалист по выдаче</option>
+      <option value="admin">администратор</option>
+    </select></label>
+    <button>Добавить</button>
+  </form>
+</div>
+{% endblock %}

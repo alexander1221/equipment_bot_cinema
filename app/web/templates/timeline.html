@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Календарь занятости</h1>
+<form method="get" class="row card">
+  <label>С даты <input type="date" name="start" value="{{ d0.isoformat() }}"></label>
+  <label>Дней <input type="number" name="days" value="{{ ndays }}" min="7" max="62" style="width:80px"></label>
+  <button type="submit">Показать</button>
+  <a class="btn sec" href="/timeline?start={{ prev }}&days={{ ndays }}" style="background:transparent;color:var(--accent);border:1px solid var(--accent)">← раньше</a>
+  <a class="btn sec" href="/timeline?days={{ ndays }}" style="background:transparent;color:var(--accent);border:1px solid var(--accent)">сегодня</a>
+  <a class="btn sec" href="/timeline?start={{ next }}&days={{ ndays }}" style="background:transparent;color:var(--accent);border:1px solid var(--accent)">позже →</a>
+</form>
+<p class="muted">В ячейке — сколько единиц занято из общего количества. Наведите курсор, чтобы увидеть, кто взял.
+  <span class="badge" style="background:var(--free)">свободно</span>
+  <span class="badge" style="background:var(--part)">частично</span>
+  <span class="badge" style="background:var(--full)">занято всё</span>
+  <span class="badge" style="background:var(--over)">перебронь</span></p>
+<div class="card tl-wrap">
+<table class="tl">
+  <tr>
+    <th></th>
+    {% for d in days %}
+      <th class="{{ 'we' if d.weekday() >= 5 }} {{ 'td' if d == today }}">{{ d.day }}<br><span class="muted">{{ texts.WEEKDAYS[d.weekday()] }}</span></th>
+    {% endfor %}
+  </tr>
+  {% set ns = namespace(cat=None) %}
+  {% for e in eqs %}
+    {% if e.category != ns.cat %}{% set ns.cat = e.category %}
+      <tr class="cat"><td colspan="{{ days|length + 1 }}">{{ e.category }}</td></tr>
+    {% endif %}
+    <tr>
+      <td class="name" title="{{ e.name }}">{{ '🔒 ' if e.hidden }}{{ e.name }} <span class="muted">({{ e.total_quantity }})</span></td>
+      {% for used, total, css, tip in cells[e.id] %}
+        <td class="{{ css }} {{ 'td' if days[loop.index0] == today }}" title="{{ tip }}">{% if used %}{{ used }}/{{ total }}{% endif %}</td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

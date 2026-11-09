@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block content %}
+<h1>Инвентарь</h1>
+{% if conflicts %}
+<div class="card" style="border-color:var(--err)">
+  <h2 style="margin-top:0;color:var(--err)">Брони превышают остаток</h2>
+  <p>Дни с перебронью: {% for d in conflicts.days %}{{ d[8:10] }}.{{ d[5:7] }}{% if not loop.last %}, {% endif %}{% endfor %}.
+     Отмените или измените одну из броней ниже и сообщите студенту.</p>
+  {{ m.table(conflict_bookings) }}
+</div>
+{% endif %}
+<p class="muted">Уровень доступа: 1 — все с 1 курса (с 1 января), 2 — со 2 курса, 3 — со 2 курса с 1 января и старшие.
+  «Скрыто» — позиция не показывается студентам совсем (выдаётся по запросу руководства).</p>
+<div class="card" style="overflow-x:auto">
+<table>
+  <tr><th>Категория / наименование</th><th>Кол-во</th><th>Списать / добавить</th></tr>
+  {% for e in eqs %}
+  <tr>
+    <td>
+      <form method="post" action="/inventory/{{ e.id }}/edit" class="inline">
+        <input type="text" name="category" value="{{ e.category }}" style="width:170px">
+        <input type="text" name="name" value="{{ e.name }}" style="width:360px">
+        <select name="tier">{% for t in (1, 2, 3) %}<option value="{{ t }}" {{ 'selected' if e.access_tier == t }}>уровень {{ t }}</option>{% endfor %}</select>
+        <label class="muted"><input type="checkbox" name="hidden" {{ 'checked' if e.hidden }}> скрыто</label>
+        <button class="sec">Сохранить</button>
+      </form>
+    </td>
+    <td><b>{{ e.total_quantity }}</b></td>
+    <td>
+      <form method="post" action="/inventory/{{ e.id }}/adjust" class="inline">
+        <input type="number" name="qty" min="1" value="1" style="width:64px">
+        <input type="text" name="reason" placeholder="причина (сломан, утерян…)" style="width:200px">
+        <button name="op" value="writeoff" class="danger">Списать</button>
+        <button name="op" value="add" class="sec">Добавить</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Новая позиция</h2>
+  <form method="post" action="/inventory/new" class="row">
+    <label>Категория <input type="text" name="category" list="cats" required>
+      <datalist id="cats">{% for c in eqs|map(attribute='category')|unique %}<option value="{{ c }}">{% endfor %}</datalist></label>
+    <label style="flex:1;min-width:240px">Наименование <input type="text" name="name" required></label>
+    <label>Кол-во <input type="number" name="qty" min="0" value="1" style="width:70px"></label>
+    <label>Уровень <select name="tier"><option>1</option><option>2</option><option selected>3</option></select></label>
+    <label><span><input type="checkbox" name="hidden"> скрыто</span></label>
+    <button>Добавить</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">История изменений</h2>
+  <table>
+    <tr><th>Когда</th><th>Позиция</th><th>Изменение</th><th>Причина</th><th>Кто</th></tr>
+    {% for l in logs %}
+    <tr><td>{{ l.created_at.strftime('%d.%m.%Y %H:%M') }}</td><td>{{ l.equipment.name }}</td>
+        <td>{{ '%+d'|format(l.delta) }}</td><td>{{ l.reason }}</td><td class="muted">{{ l.actor }}</td></tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">Пока пусто</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

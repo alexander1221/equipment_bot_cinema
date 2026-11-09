@@ -1,0 +1,44 @@
+# Зависимости сервиса «Выдача оборудования».
+# Установка: pip install -r requirements.txt
+# Версии проверены 2026-10-22 (PyPI JSON API + scripts/check_external.py
+# навыка генерации кода) для linux_x86_64 и win_amd64, Python 3.12.
+#
+# Python: 3.11 … 3.14.
+#   нижняя граница — SQLAlchemy 2.1 и pydantic-settings 2.16 требуют >= 3.11;
+#   верхняя — aiogram 3.31 объявляет requires_python <3.15.
+#   Рекомендуется 3.12 (на нём собраны колёса всех зависимостей).
+
+# --- Telegram ---
+# aiogram 3.x — асинхронный фреймворк Bot API; 3.31 — текущая стабильная.
+aiogram==3.31.0
+# Прокси (TELEGRAM_PROXY): aiogram подключает http/socks-прокси через aiohttp-socks
+aiohttp-socks==0.12.0
+python-socks==3.1.1
+
+# --- Веб-панель ---
+fastapi==0.159.1
+uvicorn==0.54.0
+jinja2==3.1.6
+# Разбор HTML-форм в FastAPI/Starlette
+python-multipart==0.0.32
+# Подпись cookie сессии (SessionMiddleware)
+itsdangerous==2.2.0
+
+# --- База данных ---
+# 2.1 требует greenlet для asyncio явно (раньше ставился автоматически)
+sqlalchemy==2.1.6
+greenlet==3.5.6
+aiosqlite==0.22.1
+
+# --- Настройки ---
+pydantic-settings==2.16.1
+# Базы часовых поясов для zoneinfo: на Windows системной базы нет
+tzdata==2026.5
+
+# --- Тесты (не нужны для работы сервиса) ---
+pytest==9.1.1
+pytest-asyncio==1.4.0
+httpx==0.28.1
+
+# Не входит: PostgreSQL-драйвер (asyncpg) — только если кафедра переедет с SQLite,
+# см. docs/ARCHITECTURE.md.
