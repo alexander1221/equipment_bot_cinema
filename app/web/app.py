@@ -254,7 +254,12 @@ def create_app(sm: async_sessionmaker, settings: Settings, clock: Callable[[], d
         form = await request.form()
         try:
             issue_date = date.fromisoformat(str(form.get("issue_date")))
-            issue_time = parse_time(str(form.get("issue_time", "")))
+            if "issue_hour" in form or "issue_minute" in form:
+                raw_time = f"{form.get('issue_hour', '')}:{form.get('issue_minute', '')}"
+            else:
+                # Accept forms opened before this release as well.
+                raw_time = str(form.get("issue_time", ""))
+            issue_time = parse_time(raw_time)
         except ValueError as e:
             flash(request, f"Проверьте дату и время: {e}", "err")
             return back(f"/requests/{bid}")
@@ -514,4 +519,3 @@ def create_app(sm: async_sessionmaker, settings: Settings, clock: Callable[[], d
         return back("/staff")
 
     return app
-

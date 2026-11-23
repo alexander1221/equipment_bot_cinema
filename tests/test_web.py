@@ -1,6 +1,7 @@
 """Веб-панель (п. 3.4 и 5 ТЗ): вход, внутренняя бронь, списание, назначение выдачи."""
 
 from datetime import date
+from html.parser import HTMLParser
 
 import pytest
 from aiogram import Bot
@@ -123,3 +124,86 @@ async def test_students_page_verify_and_block(web, clock):
     r = client.post(f"/students/{st.id}", data={"act": "block", "back": "verified"})
     async with sm() as s:
         assert (await services.get_student(s, 888)).status == "blocked"
+
+
+class TimeSelects(HTMLParser):
+    def __init__(self, html):
+        super().__init__()
+        self.controls = {}
+        self.current = None
+        self.feed(html)
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "select":
+            self.current = attrs.get("name")
+            self.controls[self.current] = {"required": "required" in attrs, "options": []}
+        elif tag == "option" and self.current is not None:
+            self.controls[self.current]["options"].append(
+                (attrs.get("value"), "selected" in attrs))
+
+    def handle_endtag(self, tag):
+        if tag == "select":
+            self.current = None
+
+
+@pytest.fixture
+async def issue_booking(web, clock, settings):
+    client, sm, session = web
+    login(client)
+    eq = await ids(sm)
+    async with sm() as s:
+        student = await services.save_student(s, 777, "Сидоров Пётр", 2, "sid", clock(), auto_verify=True)
+        teacher = (await services.teachers(s))[0]
+        booking = await services.create_student_booking(
+            s, settings, student, teacher.id, date(2026, 10, 26), date(2026, 10, 27),
+            "Этюд", {eq["Штатив QZSD Q338 3D"]: 1}, clock())
+        await services.decide(s, settings, booking.id, True, "Преподаватель", clock())
+        bid = booking.id
+    return client, sm, session, bid
+
+
+@pytest.mark.parametrize("hour,minute", [("07", "00"), ("12", "05"), ("15", "30"), ("22", "00")])
+async def test_issue_time_24h_roundtrip_and_notification(issue_booking, hour, minute):
+    client, sm, session, bid = issue_booking
+    response = client.post(f"/requests/{bid}/issue", data={
+        "issue_date": "2026-10-26", "issue_hour": hour, "issue_minute": minute,
+        "issue_place": "ауд. 106.1", "action": "send"})
+    assert "Сообщение отправлено студенту" in response.text
+    async with sm() as s:
+        booking = await services.get_booking(s, bid)
+        assert booking.issue_time == f"{hour}:{minute}"
+        assert booking.status == Status.SCHEDULED
+    assert any(isinstance(c, SendMessage) and c.chat_id == 777
+               and f"{hour}:{minute}" in c.text for c in session.calls)
+    controls = TimeSelects(response.text).controls
+    assert controls["issue_hour"]["required"] and controls["issue_minute"]["required"]
+    assert [v for v, _ in controls["issue_hour"]["options"] if v] == [f"{v:02d}" for v in range(7, 23)]
+    assert [v for v, _ in controls["issue_minute"]["options"] if v] == [f"{v:02d}" for v in range(60)]
+    assert [v for v, selected in controls["issue_hour"]["options"] if selected] == [hour]
+    assert [v for v, selected in controls["issue_minute"]["options"] if selected] == [minute]
+    assert 'type="time"' not in response.text
+
+
+@pytest.mark.parametrize("parts", [
+    {"issue_hour": "06", "issue_minute": "59"},
+    {"issue_hour": "22", "issue_minute": "01"},
+    {"issue_hour": "14", "issue_minute": "60"},
+    {"issue_hour": "24", "issue_minute": "00"},
+    {"issue_hour": "14"}, {"issue_minute": "30"},
+    {"issue_hour": "", "issue_minute": ""},
+    {"issue_hour": "02 PM", "issue_minute": "30"},
+])
+async def test_invalid_issue_time_does_not_notify_or_change_booking(issue_booking, parts):
+    client, sm, session, bid = issue_booking
+    async with sm() as s:
+        before = (await services.get_booking(s, bid)).issue_time
+    response = client.post(f"/requests/{bid}/issue", data={
+        "issue_date": "2026-10-26", "issue_place": "ауд. 106.1", "action": "send",
+        "issue_time": "15:30", **parts})
+    assert "Проверьте дату и время" in response.text
+    async with sm() as s:
+        booking = await services.get_booking(s, bid)
+        assert booking.status == Status.APPROVED
+        assert booking.issue_time == before
+    assert not any(isinstance(c, SendMessage) and c.chat_id == 777 for c in session.calls)
