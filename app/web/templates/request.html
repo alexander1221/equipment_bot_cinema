@@ -38,12 +38,31 @@
       <form method="post" action="/requests/{{ b.id }}/issue">
         <div class="row">
           <label>Дата <input type="date" name="issue_date" value="{{ b.issue_date.isoformat() if b.issue_date else '' }}" required></label>
-          <label>Время <input type="time" name="issue_time" value="{{ b.issue_time }}" required></label>
+          {% set issue_parts = b.issue_time.split(':') if b.issue_time else ['', ''] %}
+          <label>Часы (24 ч)
+            <select name="issue_hour" required>
+              <option value="">Часы</option>
+              {% for hour in range(7, 23) %}
+              {% set value = '%02d'|format(hour) %}
+              <option value="{{ value }}" {{ 'selected' if value == issue_parts[0] }}>{{ value }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Минуты
+            <select name="issue_minute" required>
+              <option value="">Минуты</option>
+              {% for minute in range(60) %}
+              {% set value = '%02d'|format(minute) %}
+              <option value="{{ value }}" {{ 'selected' if value == issue_parts[1] }}>{{ value }}</option>
+              {% endfor %}
+            </select>
+          </label>
           <label>Место
             <input type="text" name="issue_place" value="{{ b.issue_place }}" list="places" required>
             <datalist id="places">{% for p in places %}<option value="{{ p }}">{% endfor %}</datalist>
           </label>
         </div>
+        <p class="muted">Время выдачи — с 07:00 до 22:00, в 24-часовом формате.</p>
         <p><label class="muted">Свой текст вместо шаблона (необязательно)
           <textarea name="custom_text">{{ b.issue_custom_text }}</textarea></label></p>
         <button name="action" value="save" class="sec">Сохранить черновик</button>

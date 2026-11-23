@@ -134,3 +134,4 @@ Conda тут ничего не даёт. `download_*` нет — внешних 
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — типовые проблемы.
 - [REPRODUCIBILITY.md](REPRODUCIBILITY.md) — как поднять то же окружение через годы.
 - [CHANGELOG.md](CHANGELOG.md) — версии и проверенные факты.
+- [CI/CD и обновление сервера](docs/deployment/CI_CD.md) — автоматические проверки и ручной выпуск проверенной версии.
