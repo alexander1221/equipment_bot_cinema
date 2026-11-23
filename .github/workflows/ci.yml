@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
           cache: pip
@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Build production Dockerfile
         run: docker build --tag equipment-bot:ci .
       - name: Smoke-test web mode without Telegram
@@ -42,7 +42,7 @@ jobs:
             -e WEB_SECRET_KEY=ci-session-key-only \
             -e DATABASE_URL=sqlite+aiosqlite:////tmp/ci-equipment.db \
             equipment-bot:ci python main.py web
-          curl --fail --silent --show-error --retry 15 --retry-connrefused \
+          curl --fail --silent --show-error --retry 15 --retry-all-errors \
             --retry-delay 2 --max-time 5 http://127.0.0.1:18080/login > /dev/null
       - name: Container logs and cleanup
         if: always()
